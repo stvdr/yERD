@@ -39,7 +39,8 @@ namespace yERD.db {
 				throw new InvalidOperationException("The table specified does not exist in the extracted database.");
 			}
 
-			return adj;
+            IEnumerable<EntityRelationship> r = _relationships.Where((rel) => rel.To.QualifiedName == t.QualifiedName);
+			return r;
 		}
 
 		/// <summary>

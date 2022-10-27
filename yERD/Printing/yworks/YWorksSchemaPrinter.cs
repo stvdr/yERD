@@ -178,8 +178,8 @@ namespace yERD.Printing.yworks {
 
 				elements.Add(new XElement(GraphML.Namespace + "edge",
 					new XAttribute("id", "e" + ++_lastEdgeId),
-					new XAttribute("source", "n" + GetTableId(table)),
-					new XAttribute("target", "n" + GetTableId(ER.To)),
+					new XAttribute("source", "n" + GetTableId(ER.From)),
+					new XAttribute("target", "n" + GetTableId(table)),
 					new XElement(GraphML.Namespace + "data",
 						new XAttribute("key", "d10"),
 					new XElement(Namespace + "PolyLineEdge",

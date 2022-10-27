@@ -21,8 +21,8 @@ namespace yERD.Printing {
 				_visited.Add(t);
 				var adj = db.GetRelationshipsFrom(t);
 				foreach (var a in adj) {
-					if (_visited.Add(a.To)) {
-						q.Enqueue(a.To);
+					if (_visited.Add(a.From)) {
+						q.Enqueue(a.From);
 					}
 				}
 			}
