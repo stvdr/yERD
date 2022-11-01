@@ -84,19 +84,26 @@ namespace yERD.Printing.yworks {
 			const double WIDTH_HEADER = 16;
 
 			//build the HTML that will be present in each ERD node
+			string keyPrefix;
+			int maxPrefixLength = 0;
+			string cellContents;
 			StringBuilder sb = new StringBuilder();
 			foreach (var attr in table.Attributes) {
 				sb.Append("<tr>");
 
-				sb.Append("<td>");
 				if (attr.IsPartOfPrimaryKey) {
-					sb.Append(GetPrimaryKeyCell(attr));
+					keyPrefix = "PK  ";
+					cellContents = GetPrimaryKeyCell(attr);
 				} else if (!attr.IsNullable) {
-					sb.Append(GetNonNullableCell(attr));
+					keyPrefix = "    ";
+					cellContents = GetNonNullableCell(attr);
 				} else {
-					sb.Append(attr.Name);
+					keyPrefix = "    ";
+					cellContents = attr.Name;
 				}
-				sb.Append("</td>");
+				sb.Append($"<td><b>{keyPrefix}</b></td>");
+				sb.Append($"<td>{cellContents}</td>");
+				maxPrefixLength = keyPrefix.Length > maxPrefixLength ? keyPrefix.Length : maxPrefixLength;
 
 				sb.Append("<td>");
 				sb.Append(attr.Type.ToString());
@@ -106,7 +113,7 @@ namespace yERD.Printing.yworks {
 			}
 
 			//The maximum number of characters in a row
-			int width = table.Attributes.Select(a => a.Name.Length).Max() + table.Attributes.Select(a => a.Type.ToString().Length).Max();
+			int width = table.Attributes.Select(a => a.Name.Length).Max() + table.Attributes.Select(a => a.Type.ToString().Length).Max() + maxPrefixLength;
 
 			//Does the header have the longest string?
 			width = width > table.QualifiedName.Length ? width : table.QualifiedName.Length;
