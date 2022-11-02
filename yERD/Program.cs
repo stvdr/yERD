@@ -107,7 +107,7 @@ namespace yERD {
 			{
 				tableFilter.SchemaFilter(database, schema);
 			}
-			printer.WriteFile(output, tableFilter);
+			printer.WriteFile(output, tableFilter, showRelation, showType);
 			Console.WriteLine("File '" + output + "' saved successfully!");
 		}
 	}

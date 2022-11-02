@@ -92,7 +92,7 @@ namespace yERD.Printing.yworks {
 				sb.Append("<tr>");
 
 				if (attr.IsPartOfPrimaryKey) {
-					keyPrefix = "PK  ";
+					keyPrefix = showRelation ? "PK  " : "    ";
 					cellContents = GetPrimaryKeyCell(attr);
 				} else if (!attr.IsNullable) {
 					keyPrefix = "    ";
@@ -101,13 +101,25 @@ namespace yERD.Printing.yworks {
 					keyPrefix = "    ";
 					cellContents = attr.Name;
 				}
-				sb.Append($"<td><b>{keyPrefix}</b></td>");
+
+				if (showRelation)
+				{
+					sb.Append($"<td><b>{keyPrefix}</b></td>");
+				}
+				else
+				{
+					maxPrefixLength = 0;
+				}
+
 				sb.Append($"<td>{cellContents}</td>");
 				maxPrefixLength = keyPrefix.Length > maxPrefixLength ? keyPrefix.Length : maxPrefixLength;
 
-				sb.Append("<td>");
-				sb.Append(attr.Type.ToString());
-				sb.Append("</td>");
+				if (showType)
+				{
+					sb.Append("<td>");
+					sb.Append(attr.Type.ToString());
+					sb.Append("</td>");
+				}
 
 				sb.Append("</tr>");
 			}
@@ -214,7 +226,7 @@ namespace yERD.Printing.yworks {
 			}
 		}
 
-		public void WriteFile(string path, ITableFilter filter) {
+		public void WriteFile(string path, ITableFilter filter, bool showRelation = true, bool showType = true) {
 			if (string.IsNullOrEmpty(path)) {
 				throw new ArgumentNullException("path");
 			}
@@ -228,7 +240,7 @@ namespace yERD.Printing.yworks {
 			}
 
 			//For each table that exists in the database, create ERD XML nodes
-			IEnumerable<XElement> elements = tables.Select(t => CreateERDNode(t, true, true));
+			IEnumerable<XElement> elements = tables.Select(t => CreateERDNode(t, showRelation, showType));
 
 			//Create edge elements for each table's relationship
 			var edges = tables.Select(t => GetEdgeElements(_database, t)).ToArray();
