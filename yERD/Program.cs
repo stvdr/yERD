@@ -12,7 +12,7 @@ using yERD.Printing.yworks;
 namespace yERD {
 	class Program {
 		static string CreateConnectionString(string datasource, string catalog) {
-			string connectionString = "Application Name=FactSet.Fundamentals.wqGraph;Data Source={DS};Initial Catalog={IC};Integrated Security=True";
+			string connectionString = "Application Name=yERD;Data Source={DS};Initial Catalog={IC};Integrated Security=True";
 			connectionString = connectionString.Replace("{DS}", datasource);
 			connectionString = connectionString.Replace("{IC}", catalog);
 
