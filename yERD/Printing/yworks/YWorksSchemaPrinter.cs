@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Xml.Linq;
 using yERD.db;
@@ -78,32 +79,56 @@ namespace yERD.Printing.yworks {
 			return sb.ToString();
 		}
 
+		string GetKeyPrefix(TableColumn col, IEnumerable<TableIndex> indices, IEnumerable<EntityRelationship> relationships)
+		{
+			string prefix = "";
+			List<string> keyStrings = new List<string>();
+			// Get 'PK' if part of primary key.
+			List<TableIndex> pks = indices.Where(i => i.IsPrimaryKey && i.AttachedAttributes.Where(a => a.Name == col.Name && a.IsPartOfPrimaryKey).Any()).ToList();
+			keyStrings = pks.Select(ci => ci.NickName).ToList();
+			// Get 'FK#' if part of foreign key. Item1 in the attributes tuple is the name of the column in the From table.
+			IEnumerable<EntityRelationship> fks = relationships.Where(r => r.Attributes.Where(i => i.Item1.Name == col.Name).Any()).ToList();
+			int FKCount = 0;
+			foreach (EntityRelationship r in fks.OrderBy(o => o.Id))
+			{
+				FKCount++;
+				keyStrings.Add($"FK{FKCount}");
+			}
+			// Get 'I#' for other indices.
+			List<TableIndex> otherKeys = indices.Where(i => !i.IsPrimaryKey && i.AttachedAttributes.Where(a => a.Name == col.Name && !a.IsPartOfPrimaryKey).Any()).ToList();
+			keyStrings.AddRange(otherKeys.Select(i => i.NickName).ToList());
+
+			prefix = string.Join(",",  keyStrings);
+			return prefix + "  ";
+		}
+
 		XElement CreateERDNode(Table table, bool showRelation = true, bool showType = true) {
 			//The height and width of each ERD node's header
 			const double HEIGHT_HEADER = 10.0;
 			const double WIDTH_HEADER = 16;
 
 			//build the HTML that will be present in each ERD node
-			string keyPrefix;
+
 			int maxPrefixLength = 0;
 			string cellContents;
 			StringBuilder sb = new StringBuilder();
-			foreach (var attr in table.Attributes) {
+			IEnumerable<EntityRelationship> relationships = _database.GetRelationshipsFrom(table);
+
+			foreach (var attr in table.Attributes.OrderBy(o => o.Id)) {
 				sb.Append("<tr>");
 
 				if (attr.IsPartOfPrimaryKey) {
-					keyPrefix = showRelation ? "PK  " : "    ";
 					cellContents = GetPrimaryKeyCell(attr);
 				} else if (!attr.IsNullable) {
-					keyPrefix = "    ";
 					cellContents = GetNonNullableCell(attr);
 				} else {
-					keyPrefix = "    ";
 					cellContents = attr.Name;
 				}
 
 				if (showRelation)
 				{
+					string keyPrefix = GetKeyPrefix(attr, table.Indices, relationships);
+					maxPrefixLength = keyPrefix.Length > maxPrefixLength ? keyPrefix.Length : maxPrefixLength;
 					sb.Append($"<td><b>{keyPrefix}</b></td>");
 				}
 				else
@@ -112,7 +137,6 @@ namespace yERD.Printing.yworks {
 				}
 
 				sb.Append($"<td>{cellContents}</td>");
-				maxPrefixLength = keyPrefix.Length > maxPrefixLength ? keyPrefix.Length : maxPrefixLength;
 
 				if (showType)
 				{
@@ -174,7 +198,7 @@ namespace yERD.Printing.yworks {
 		IEnumerable<XElement> GetEdgeElements(Database db, Table table) {
 			IList<XElement> elements = new List<XElement>();
 
-			var relationships = db.GetRelationshipsFrom(table);
+			var relationships = db.GetRelationshipsTo(table);
 			foreach (var ER in relationships) {
 
 				string sourceArrow = "none";
