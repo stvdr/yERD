@@ -88,11 +88,11 @@ namespace yERD.Printing.yworks {
 			keyStrings = pks.Select(ci => ci.NickName).ToList();
 			// Get 'FK#' if part of foreign key. Item1 in the attributes tuple is the name of the column in the From table.
 			IEnumerable<EntityRelationship> fks = relationships.Where(r => r.Attributes.Where(i => i.Item1.Name == col.Name).Any()).ToList();
-			int FKCount = 0;
+
 			foreach (EntityRelationship r in fks.OrderBy(o => o.Id))
 			{
-				FKCount++;
-				keyStrings.Add($"FK{FKCount}");
+                int fkIndex = relationships.ToList().FindIndex(rel => rel.Name == r.Name) + 1;
+                keyStrings.Add($"FK{fkIndex}");
 			}
 			// Get 'I#' for other indices.
 			List<TableIndex> otherKeys = indices.Where(i => !i.IsPrimaryKey && i.AttachedAttributes.Where(a => a.Name == col.Name && !a.IsPartOfPrimaryKey).Any()).ToList();
