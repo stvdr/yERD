@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Xml.Linq;
 using yERD.db;
@@ -78,35 +79,77 @@ namespace yERD.Printing.yworks {
 			return sb.ToString();
 		}
 
+		string GetKeyPrefix(TableColumn col, IEnumerable<TableIndex> indices, IEnumerable<EntityRelationship> relationships)
+		{
+			string prefix = "";
+			List<string> keyStrings = new List<string>();
+			// Get 'PK' if part of primary key.
+			List<TableIndex> pks = indices.Where(i => i.IsPrimaryKey && i.AttachedAttributes.Where(a => a.Name == col.Name && a.IsPartOfPrimaryKey).Any()).ToList();
+			keyStrings = pks.Select(ci => ci.NickName).ToList();
+			// Get 'FK#' if part of foreign key. Item1 in the attributes tuple is the name of the column in the From table.
+			IEnumerable<EntityRelationship> fks = relationships.Where(r => r.Attributes.Where(i => i.Item1.Name == col.Name).Any()).ToList();
+
+			foreach (EntityRelationship r in fks.OrderBy(o => o.Id))
+			{
+                int fkIndex = relationships.ToList().FindIndex(rel => rel.Name == r.Name) + 1;
+                keyStrings.Add($"FK{fkIndex}");
+			}
+			// Get 'I#' for other indices.
+			List<TableIndex> otherKeys = indices.Where(i => !i.IsPrimaryKey && i.AttachedAttributes.Where(a => a.Name == col.Name && !a.IsPartOfPrimaryKey).Any()).ToList();
+			keyStrings.AddRange(otherKeys.Select(i => i.NickName).ToList());
+
+			prefix = string.Join(",",  keyStrings);
+			return prefix + "  ";
+		}
+
 		XElement CreateERDNode(Table table, bool showRelation = true, bool showType = true) {
 			//The height and width of each ERD node's header
 			const double HEIGHT_HEADER = 10.0;
 			const double WIDTH_HEADER = 16;
 
 			//build the HTML that will be present in each ERD node
+
+			int maxPrefixLength = 0;
+			string cellContents;
 			StringBuilder sb = new StringBuilder();
-			foreach (var attr in table.Attributes) {
+			IEnumerable<EntityRelationship> relationships = _database.GetRelationshipsFrom(table);
+
+			foreach (var attr in table.Attributes.OrderBy(o => o.Id)) {
 				sb.Append("<tr>");
 
-				sb.Append("<td>");
 				if (attr.IsPartOfPrimaryKey) {
-					sb.Append(GetPrimaryKeyCell(attr));
+					cellContents = GetPrimaryKeyCell(attr);
 				} else if (!attr.IsNullable) {
-					sb.Append(GetNonNullableCell(attr));
+					cellContents = GetNonNullableCell(attr);
 				} else {
-					sb.Append(attr.Name);
+					cellContents = attr.Name;
 				}
-				sb.Append("</td>");
 
-				sb.Append("<td>");
-				sb.Append(attr.Type.ToString());
-				sb.Append("</td>");
+				if (showRelation)
+				{
+					string keyPrefix = GetKeyPrefix(attr, table.Indices, relationships);
+					maxPrefixLength = keyPrefix.Length > maxPrefixLength ? keyPrefix.Length : maxPrefixLength;
+					sb.Append($"<td><b>{keyPrefix}</b></td>");
+				}
+				else
+				{
+					maxPrefixLength = 0;
+				}
+
+				sb.Append($"<td>{cellContents}</td>");
+
+				if (showType)
+				{
+					sb.Append("<td>");
+					sb.Append(attr.Type.ToString());
+					sb.Append("</td>");
+				}
 
 				sb.Append("</tr>");
 			}
 
 			//The maximum number of characters in a row
-			int width = table.Attributes.Select(a => a.Name.Length).Max() + table.Attributes.Select(a => a.Type.ToString().Length).Max();
+			int width = table.Attributes.Select(a => a.Name.Length).Max() + table.Attributes.Select(a => a.Type.ToString().Length).Max() + maxPrefixLength;
 
 			//Does the header have the longest string?
 			width = width > table.QualifiedName.Length ? width : table.QualifiedName.Length;
@@ -130,7 +173,7 @@ namespace yERD.Printing.yworks {
 							new XAttribute("autoSizePolicy", "content"),
 							new XAttribute("alignment", "center"),
 							new XAttribute("backgroundColor", "#B7C9E3"),
-							new XAttribute("configuration", "DetailedEntity_NameLabelConfiguation"),
+							new XAttribute("configuration", "DetailedEntity_NameLabelConfiguration"),
 							new XAttribute("modelName", "internal"),
 							new XAttribute("modelPosition", "t"), table.QualifiedName),
 						new XElement(Namespace + "NodeLabel",
@@ -138,7 +181,7 @@ namespace yERD.Printing.yworks {
 							new XAttribute("autoSizePolicy", "content"),
 							new XAttribute("hasBackgroundColor", "false"),
 							new XAttribute("alignment", "left"),
-							new XAttribute("configuration", "DetailedEntity_AttributeLabelConfiguation"),
+							new XAttribute("configuration", "DetailedEntity_AttributeLabelConfiguration"),
 							new XAttribute("modelName", "custom"),
 							new XAttribute("modelPosition", "t"), "<html><table cellpadding=\"0\" cellspacing=\"2\">" + sb.ToString() + "</table></html>",
 							new XElement(Namespace + "LabelModel",
@@ -155,7 +198,7 @@ namespace yERD.Printing.yworks {
 		IEnumerable<XElement> GetEdgeElements(Database db, Table table) {
 			IList<XElement> elements = new List<XElement>();
 
-			var relationships = db.GetRelationshipsFrom(table);
+			var relationships = db.GetRelationshipsTo(table);
 			foreach (var ER in relationships) {
 
 				string sourceArrow = "none";
@@ -178,8 +221,8 @@ namespace yERD.Printing.yworks {
 
 				elements.Add(new XElement(GraphML.Namespace + "edge",
 					new XAttribute("id", "e" + ++_lastEdgeId),
-					new XAttribute("source", "n" + GetTableId(table)),
-					new XAttribute("target", "n" + GetTableId(ER.To)),
+					new XAttribute("source", "n" + GetTableId(ER.From)),
+					new XAttribute("target", "n" + GetTableId(table)),
 					new XElement(GraphML.Namespace + "data",
 						new XAttribute("key", "d10"),
 					new XElement(Namespace + "PolyLineEdge",
@@ -207,7 +250,7 @@ namespace yERD.Printing.yworks {
 			}
 		}
 
-		public void WriteFile(string path, ITableFilter filter) {
+		public void WriteFile(string path, ITableFilter filter, bool showRelation = true, bool showType = true) {
 			if (string.IsNullOrEmpty(path)) {
 				throw new ArgumentNullException("path");
 			}
@@ -221,7 +264,7 @@ namespace yERD.Printing.yworks {
 			}
 
 			//For each table that exists in the database, create ERD XML nodes
-			IEnumerable<XElement> elements = tables.Select(t => CreateERDNode(t, true, true));
+			IEnumerable<XElement> elements = tables.Select(t => CreateERDNode(t, showRelation, showType));
 
 			//Create edge elements for each table's relationship
 			var edges = tables.Select(t => GetEdgeElements(_database, t)).ToArray();

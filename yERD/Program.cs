@@ -12,7 +12,7 @@ using yERD.Printing.yworks;
 namespace yERD {
 	class Program {
 		static string CreateConnectionString(string datasource, string catalog) {
-			string connectionString = "Application Name=FactSet.Fundamentals.wqGraph;Data Source={DS};Initial Catalog={IC};Integrated Security=True";
+			string connectionString = "Application Name=yERD;Data Source={DS};Initial Catalog={IC};Integrated Security=True";
 			connectionString = connectionString.Replace("{DS}", datasource);
 			connectionString = connectionString.Replace("{IC}", catalog);
 
@@ -24,6 +24,7 @@ namespace yERD {
 			string dataSource = null;
 			string initialCatalog = null;
 			string root = null;
+			string schema = null;
 			string outputFile = null;
 			bool showType = true;
 			string sType = "";
@@ -39,6 +40,8 @@ namespace yERD {
 						(string ic) => initialCatalog = ic},
 					{"r|rootTable=", "a {ROOT TABLE} All tables output will have a descendent relation to this table.",
 						(string r) => root = r},
+					{"sc|schema=", "a {SCHEMA} All tables output will be members of this schema.",
+						(string sc) => schema = sc},
 					{"st|showType=", "{Y/N} to indicate whether or not a column displaying attribute type is shown.",
 						(string st) => sType = st},
 					{"sr|showRelation=", "{Y/N} to indicate whether or not PK/UX/IX/FK labels are displayed for each attribute.",
@@ -75,6 +78,12 @@ namespace yERD {
 				return;
 			}
 
+			if (root != null && schema != null)
+			{
+				Console.Error.WriteLine("rootTable and schema are mutually exclusive");
+				return;
+			}
+
 			showType = sType == "N" ? false : true;
 			showRelation = sRelation == "N" ? false : true;
 
@@ -89,12 +98,16 @@ namespace yERD {
 
 			var printer = new YWorksSchemaPrinter(database);
 
-			ITableFilter filter = null;
+			TableFilter tableFilter = new TableFilter();
 			if (root != null) {
 				var filterWithTable = database.Tables.FirstOrDefault(t => t.QualifiedName.ToLower() == root.ToLower());
-				filter = new RootTableFilter(database, filterWithTable);
+				tableFilter.RootTableFilter(database, filterWithTable);
 			}
-			printer.WriteFile(output, filter);
+			else if (schema != null)
+			{
+				tableFilter.SchemaFilter(database, schema);
+			}
+			printer.WriteFile(output, tableFilter, showRelation, showType);
 			Console.WriteLine("File '" + output + "' saved successfully!");
 		}
 	}

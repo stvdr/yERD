@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("yERD")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("FactSet Research Systems Inc.")]
+[assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("yERD")]
-[assembly: AssemblyCopyright("Copyright © FactSet Research Systems Inc. 2014")]
+[assembly: AssemblyCopyright("")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("ec8f4ad9-40b4-4193-a4ef-44cbdc6a4fe4")]
+[assembly: Guid("AFAE5443-7AC9-4453-8C85-ED9F94139E3B")]
 
 // Version information for an assembly consists of the following four values:
 //
